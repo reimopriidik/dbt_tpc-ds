@@ -1,5 +1,11 @@
---use schema snowflake_sample_data.tpcds_sf10tcl;
+-- TOP 3 rows of CUSTOMERS table
+
+WITH source_data AS (
+  SELECT *
+  FROM {{ source('snowflake_sample_data', 'CUSTOMER') }}
+  LIMIT 3
+)
 
 SELECT *
-FROM "SNOWFLAKE_SAMPLE_DATA"."TPCDS_SF10TCL"."CUSTOMER"
-LIMIT 3;
+FROM source_data
+

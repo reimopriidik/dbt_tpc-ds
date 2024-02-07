@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: snowflake_sample_data
+    database: SNOWFLAKE_SAMPLE_DATA
+    schema: TPCDS_SF10TCL
+    tables:
+      - name: CUSTOMER
