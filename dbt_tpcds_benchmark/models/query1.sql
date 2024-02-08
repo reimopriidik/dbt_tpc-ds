@@ -73,6 +73,7 @@ return_AMT_ave AS (
 )
 
 -- Final result table
+-- (only showing TOP 100 customers based on SR_RETURN_AMT)
 SELECT
   TOP 100
   SR_CUSTOMER_SK, C_SALUTATION, C_FIRST_NAME, C_LAST_NAME, C_EMAIL_ADDRESS, C_BIRTH_COUNTRY, C_BIRTH_YEAR, C_BIRTH_MONTH, R_AMT_sum
