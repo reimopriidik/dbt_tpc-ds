@@ -24,7 +24,7 @@ SR_RETURN_AMT
 */
 
 WITH customers_ AS (
-  SELECT C_CUSTOMER_SK, C_SALUTATION, C_FIRST_NAME, C_LAST_NAME, C_EMAIL_ADDRESS, C_BIRTH_COUNTRY, C_BIRTH_YEAR, C_BIRTH_MONTH
+  SELECT C_CUSTOMER_SK, C_SALUTATION, C_FIRST_NAME, C_LAST_NAME, C_EMAIL_ADDRESS, C_BIRTH_COUNTRY, C_BIRTH_YEAR, C_BIRTH_MONTH, C_BIRTH_DAY
   FROM {{ source('snowflake_sample_data', 'CUSTOMER') }}
 ),
 store_returns_ AS (
@@ -43,7 +43,7 @@ state_ AS (
 -- Summarised table for all customer returns in 2000 in TN state
 sum_table AS (
   SELECT
-    SR_CUSTOMER_SK, C_SALUTATION, C_FIRST_NAME, C_LAST_NAME, C_EMAIL_ADDRESS, C_BIRTH_COUNTRY, C_BIRTH_YEAR, C_BIRTH_MONTH, D_DATE, SR_RETURN_AMT, SR_ITEM_SK,
+    SR_CUSTOMER_SK, C_SALUTATION, C_FIRST_NAME, C_LAST_NAME, C_EMAIL_ADDRESS, C_BIRTH_COUNTRY, C_BIRTH_YEAR, C_BIRTH_MONTH, C_BIRTH_DAY, D_DATE, SR_RETURN_AMT, SR_ITEM_SK,
     SUM(SR_RETURN_AMT) OVER(PARTITION BY SR_CUSTOMER_SK) AS R_AMT_sum -- Column to sum all returns per customer
   FROM store_returns_ AS sr
   JOIN customers_ AS c
@@ -58,7 +58,7 @@ sum_table AS (
     sr.SR_RETURN_AMT IS NOT NULL
   GROUP BY 
     SR_CUSTOMER_SK, SR_RETURNED_DATE_SK, SR_RETURN_TIME_SK, SR_ITEM_SK,
-    SR_STORE_SK, SR_RETURN_AMT, C_CUSTOMER_SK, C_SALUTATION, C_FIRST_NAME, C_LAST_NAME, C_EMAIL_ADDRESS, C_BIRTH_COUNTRY, C_BIRTH_MONTH, C_BIRTH_YEAR, D_DATE_SK, D_YEAR, D_DATE, S_STORE_SK, S_STATE
+    SR_STORE_SK, SR_RETURN_AMT, C_CUSTOMER_SK, C_SALUTATION, C_FIRST_NAME, C_LAST_NAME, C_EMAIL_ADDRESS, C_BIRTH_COUNTRY, C_BIRTH_DAY, C_BIRTH_MONTH, C_BIRTH_YEAR, D_DATE_SK, D_YEAR, D_DATE, S_STORE_SK, S_STATE
 ),
 -- Condenced table showing returns per each customer
 customer_total_return AS (
@@ -72,26 +72,26 @@ return_AMT_ave AS (
   FROM customer_total_return
 )
 
--- Final result table
--- (only showing TOP 100 customers based on SR_RETURN_AMT)
+-- Final result table for customers who have returned items 20% more often than an average customer in TN state in 2000
 SELECT
-  TOP 100
-  SR_CUSTOMER_SK, C_SALUTATION, C_FIRST_NAME, C_LAST_NAME, C_EMAIL_ADDRESS, C_BIRTH_COUNTRY, C_BIRTH_YEAR, C_BIRTH_MONTH, R_AMT_sum
+  /*TOP 100 -- (only showing TOP 100 customers based on SR_RETURN_AMT)*/
+  SR_CUSTOMER_SK, C_SALUTATION, C_FIRST_NAME, C_LAST_NAME, C_EMAIL_ADDRESS, C_BIRTH_COUNTRY, C_BIRTH_YEAR, C_BIRTH_MONTH, C_BIRTH_DAY, R_AMT_sum
 FROM sum_table
 WHERE R_AMT_sum > 1.2 * (SELECT * FROM return_AMT_ave)
-GROUP BY SR_CUSTOMER_SK, C_SALUTATION, C_FIRST_NAME, C_LAST_NAME, C_EMAIL_ADDRESS, C_BIRTH_COUNTRY, C_BIRTH_YEAR, C_BIRTH_MONTH, R_AMT_sum
+GROUP BY SR_CUSTOMER_SK, C_SALUTATION, C_FIRST_NAME, C_LAST_NAME, C_EMAIL_ADDRESS, C_BIRTH_COUNTRY, C_BIRTH_YEAR, C_BIRTH_MONTH, C_BIRTH_DAY, R_AMT_sum
 ORDER BY R_AMT_sum DESC
 -- "Finished running 1 table model in 0 hours 1 minutes and 18.25 seconds (78.25s)."
 
 
 
 
-
-
--- SELECT * FROM return_AMT_ave
+/*
+-- Average returns per customer in TN in 2000
+SELECT * FROM return_AMT_ave
+*/
 
 /*
--- Final result table
+-- Result table for all returns in 2000 in TN state
 SELECT *
 FROM sum_table
 WHERE R_AMT_sum > 1.2 * (SELECT * FROM return_AMT_ave)
