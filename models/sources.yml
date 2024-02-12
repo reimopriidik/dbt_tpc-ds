@@ -12,3 +12,4 @@ sources:
       - name: STORE
       - name: CATALOG_SALES
       - name: STORE_SALES
+      - name: ITEM
