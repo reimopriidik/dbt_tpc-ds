@@ -13,3 +13,5 @@ sources:
       - name: CATALOG_SALES
       - name: STORE_SALES
       - name: ITEM
+      - name: WEB_SALES
+      - name: CUSTOMER_DEMOGRAPHICS
