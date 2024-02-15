@@ -102,7 +102,7 @@ ten_or_more_customers AS (
 )
 
 
-SELECT TOP 100 *
+SELECT *
 FROM ten_or_more_customers
 ORDER BY S_STATE
 -- "Finished running 1 table model in 0 hours 0 minutes and 20.92 seconds (20.92s)."

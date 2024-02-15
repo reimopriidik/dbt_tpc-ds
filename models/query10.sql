@@ -11,10 +11,6 @@ Qualification Substitution Parameters:
 • COUNTY.05 = La Porte County
 */
 
-/*
-gender, marital status, education status, purchase estimate, credit rating, dependent count, employed dependent count and college dependent count
-*/
-
 WITH customers_ AS (
     SELECT C_CUSTOMER_SK, C_CURRENT_CDEMO_SK, C_CURRENT_ADDR_SK
     FROM {{ source('snowflake_sample_data', 'CUSTOMER') }}
@@ -59,8 +55,8 @@ store_date AS (
     JOIN demographics_ ON C_CURRENT_CDEMO_SK = CD_DEMO_SK
     JOIN c_addr_ ON C_CURRENT_ADDR_SK = CA_ADDRESS_SK
     JOIN store_sales_ ON C_CUSTOMER_SK = SS_CUSTOMER_SK
-    JOIN catalog_sales_ ON C_CUSTOMER_SK = CS_customer_sk
-    JOIN web_sales_ ON C_CUSTOMER_SK = WS_customer_sk
+    LEFT JOIN catalog_sales_ ON C_CUSTOMER_SK = CS_customer_sk  --using left join to keep all data from store sales
+    LEFT JOIN web_sales_ ON C_CUSTOMER_SK = WS_customer_sk      --using left join to keep all data from store sales
     JOIN date_ ON SS_SOLD_DATE_SK = D_DATE_SK
 ),
 store_cat_date AS (
@@ -73,7 +69,7 @@ store_cat_date AS (
         D_QOY       CS_sold_quarter,
         WS_SOLD_DATE_SK
     FROM store_date
-    JOIN date_ ON CS_SOLD_DATE_SK = D_DATE_SK
+    LEFT JOIN date_ ON CS_SOLD_DATE_SK = D_DATE_SK  --using left join to keep all data from store sales
 ),
 store_cat_web_date AS (
     SELECT
@@ -84,7 +80,7 @@ store_cat_web_date AS (
         D_YEAR      WS_sold_year,
         D_QOY       WS_sold_quarter
     FROM store_cat_date
-    JOIN date_ ON WS_SOLD_DATE_SK = D_DATE_SK
+    LEFT JOIN date_ ON WS_SOLD_DATE_SK = D_DATE_SK  --using left join to keep all data from store sales
 ),
 filtered_table AS (
     SELECT *
@@ -92,7 +88,13 @@ filtered_table AS (
     WHERE
         -- only keeping store sales data from the 1st quarter of 2002
         SS_sold_year = '2002' AND SS_sold_quarter = '1' AND
-        -- only for the customers from any of these counties
+        -- checking if there the same customer has also brought anything from web or catalog during the 1st quarter of 2002
+        (
+            CS_sold_year = '2002' AND CS_sold_quarter = '1'
+            OR
+            WS_sold_year = '2002' AND WS_sold_quarter = '1'
+        ) AND
+        -- keeping only the customers from any of these counties
         (
             CA_COUNTY = 'Rush County' OR
             CA_COUNTY = 'Toole County' OR
@@ -100,13 +102,9 @@ filtered_table AS (
             CA_COUNTY = 'Dona Ana County' OR
             CA_COUNTY = 'La Porte County'
         ) AND
-        -- checking if there the same customer has brought anything from web or catalog also during the 1st quarter of 2002
-        (
-            CS_sold_year = '2002' AND CS_sold_quarter = '1'
-            OR
-            WS_sold_year = '2002' AND WS_sold_quarter = '1'
-        )
+        C_CUSTOMER_SK IS NOT NULL
 ),
+-- counting customers with unique demographic charateristics
 customers_count AS (
     SELECT
         COUNT(C_CUSTOMER_SK)    unique_demographics,
