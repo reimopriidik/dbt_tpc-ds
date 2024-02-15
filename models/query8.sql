@@ -93,38 +93,25 @@ Using MS Excel to clean and concate the list of ZIP codes onto one line:
 WITH customers_ AS (
     SELECT C_CUSTOMER_SK, C_PREFERRED_CUST_FLAG
     FROM {{ source('snowflake_sample_data', 'CUSTOMER') }}
+    WHERE C_PREFERRED_CUST_FLAG = 'Y'
+),
+date_ AS (
+    SELECT D_DATE_SK, D_YEAR, D_QOY
+    FROM {{ source('snowflake_sample_data', 'DATE_DIM') }}
+    WHERE D_YEAR = '1998' AND D_QOY = '2'
 ),
 store_sales_ AS (
     SELECT SS_SOLD_DATE_SK, SS_CUSTOMER_SK, SS_STORE_SK, SS_NET_PROFIT
     FROM {{ source('snowflake_sample_data', 'STORE_SALES') }}
+    WHERE SS_SOLD_DATE_SK IN (SELECT D_DATE_SK FROM date_)
 ),
 store_ AS (
     SELECT
         S_STORE_SK, S_ZIP,
         S_STORE_NAME, S_NUMBER_EMPLOYEES, S_MANAGER, S_STREET_NUMBER, S_STREET_NAME, S_STREET_TYPE, S_CITY, S_COUNTY
     FROM {{ source('snowflake_sample_data', 'STORE') }}
-    WHERE S_STATE IS NOT NULL
-),
-date_ AS (
-    SELECT D_DATE_SK, D_YEAR, D_QOY
-    FROM {{ source('snowflake_sample_data', 'DATE_DIM') }}
-),
-joined_table AS (
-    SELECT *
-    FROM store_sales_
-    JOIN customers_
-        ON SS_CUSTOMER_SK = C_CUSTOMER_SK
-    JOIN store_
-        ON SS_STORE_SK = S_STORE_SK
-    JOIN date_
-        on SS_SOLD_DATE_SK = D_DATE_SK
-),
-filtered_table AS (
-    SELECT *
-    FROM joined_table
     WHERE
-        D_YEAR = '1998' AND D_QOY = '2' AND
-        C_PREFERRED_CUST_FLAG = 'Y' AND
+        S_STATE IS NOT NULL AND
         S_ZIP IN (
             '24128','76232','65084','87816','83926','77556','20548','26231','43848','15126','91137','61265','98294','25782','17920','18426','98235','40081','84093','28577',
             '55565','17183','54601','67897','22752','86284','18376','38607','45200','21756','29741','96765','23932','89360','29839','25989','28898','91068','72550','10390',
@@ -148,13 +135,40 @@ filtered_table AS (
             '84935','69035','83144','47537','56616','94983','48033','69952','25486','61547','27385','61860','58048','56910','16807','17871','35258','31387','35458','35576'
             )
 ),
-total_net_profit AS(
+joined_table AS (
+    SELECT *
+    FROM store_sales_
+    JOIN customers_
+        ON SS_CUSTOMER_SK = C_CUSTOMER_SK
+    JOIN store_
+        ON SS_STORE_SK = S_STORE_SK
+    JOIN date_
+        on SS_SOLD_DATE_SK = D_DATE_SK
+),
+-- Counting preferred customers per store
+num_of_pref_customers AS (
     SELECT
-        SS_STORE_SK, S_STORE_NAME, S_NUMBER_EMPLOYEES, S_MANAGER, S_STREET_NUMBER, S_STREET_NAME, S_STREET_TYPE, S_CITY, S_COUNTY, S_ZIP,
+        SS_STORE_SK                     n_ss_store_sk,
+        COUNT(C_PREFERRED_CUST_FLAG)    n_pref_cust
+    FROM joined_table
+    GROUP BY SS_STORE_SK
+),
+-- Keeping only data w >10 preferred customers
+more_than_10_pref_cust AS (
+    SELECT *
+    FROM joined_table
+    LEFT JOIN num_of_pref_customers
+        ON n_ss_store_sk = SS_STORE_SK
+    WHERE n_pref_cust > 10
+),
+-- Calculating total net profit of each store
+total_net_profit AS (
+    SELECT
+        SS_STORE_SK, S_STORE_NAME, S_NUMBER_EMPLOYEES, S_MANAGER, S_STREET_NUMBER, S_STREET_NAME, S_STREET_TYPE, S_CITY, S_COUNTY, S_ZIP, n_pref_cust,
         SUM(SS_NET_PROFIT)  sum_net_profit
-    FROM filtered_table
+    FROM more_than_10_pref_cust
     GROUP BY
-        SS_STORE_SK, S_STORE_NAME, S_NUMBER_EMPLOYEES, S_MANAGER, S_STREET_NUMBER, S_STREET_NAME, S_STREET_TYPE, S_CITY, S_COUNTY, S_ZIP
+        SS_STORE_SK, S_STORE_NAME, S_NUMBER_EMPLOYEES, S_MANAGER, S_STREET_NUMBER, S_STREET_NAME, S_STREET_TYPE, S_CITY, S_COUNTY, S_ZIP, n_pref_cust
 )
 
 SELECT *
